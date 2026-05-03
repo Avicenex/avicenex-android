@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
@@ -72,6 +73,7 @@ fun AvicenexApp() {
                 when (tab) {
                     MobileTab.Review -> ReviewScreen(selectedClaimId, onSelectClaim = { selectedClaimId = it })
                     MobileTab.Assistant -> AssistantScreen()
+                    MobileTab.Tools -> ToolsScreen()
                     MobileTab.Profiles -> ProfilesScreen()
                 }
             }
@@ -82,6 +84,7 @@ fun AvicenexApp() {
 private enum class MobileTab(val label: String, val icon: ImageVector) {
     Review("Review", Icons.Default.Assignment),
     Assistant("Assistant", Icons.Default.AutoAwesome),
+    Tools("Tools", Icons.Default.Dashboard),
     Profiles("Profiles", Icons.Default.Book)
 }
 
@@ -217,12 +220,101 @@ private fun AssistantScreen() {
             Text("Assistant", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text("Workflow-style Avicenex assistant", color = MaterialTheme.colorScheme.secondary)
         }
-        items(listOf("Claim readiness review", "Documentation checklist", "Code reference lookup")) { item ->
+        items(ToolCatalog.toolsFor(ToolGroup.AiWorkspace)) { item ->
             Card(shape = RoundedCornerShape(8.dp)) {
-                Text(item, Modifier.fillMaxWidth().padding(16.dp), fontWeight = FontWeight.SemiBold)
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(item.title, fontWeight = FontWeight.SemiBold)
+                    Text(item.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                }
             }
         }
         item { ComplianceBanner() }
+    }
+}
+
+@Composable
+private fun ToolsScreen() {
+    var selectedToolId by remember { mutableStateOf(ToolCatalog.tools.first().id) }
+    val selected = ToolCatalog.tools.first { it.id == selectedToolId }
+
+    LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            Text("Tools", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("Full Avicenex web toolset mapped into native mobile workflows.", color = MaterialTheme.colorScheme.secondary)
+        }
+        item { ComplianceBanner() }
+        ToolGroup.entries.forEach { group ->
+            item { Text(group.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+            items(ToolCatalog.toolsFor(group)) { tool ->
+                ToolCard(tool = tool, selected = tool.id == selectedToolId, onClick = { selectedToolId = tool.id })
+            }
+        }
+        item { ToolDetail(tool = selected) }
+    }
+}
+
+@Composable
+private fun ToolCard(tool: AvicenexTool, selected: Boolean, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = if (selected) Color(0xFFE7F5F4) else Color(0xFFF8FAFC)),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(tool.title, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                if (tool.requiresAi) ToolPill("AI")
+                if (tool.offlineCapable) {
+                    Spacer(Modifier.width(6.dp))
+                    ToolPill("Offline")
+                }
+            }
+            Text(tool.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+            Text(tool.webRoute, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+        }
+    }
+}
+
+@Composable
+private fun ToolDetail(tool: AvicenexTool) {
+    Card(shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9))) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(tool.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(tool.nativeWorkflow)
+            if (tool.requiresAi) {
+                Text(
+                    "Backend/API connection required for live AI output. Keep PHI out of prompts and verify all coding guidance against official sources and payer policy.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+            ReferenceSection("Example inputs", tool.exampleInputs, emptyList())
+            ReferenceSection("Expected output", tool.expectedOutput, toolReferencePreview(tool))
+        }
+    }
+}
+
+@Composable
+private fun ToolPill(text: String) {
+    Text(
+        text,
+        color = Color(0xFF007A78),
+        fontWeight = FontWeight.Bold,
+        style = MaterialTheme.typography.labelSmall,
+        modifier = Modifier.background(Color(0xFFE7F5F4), RoundedCornerShape(50)).padding(horizontal = 8.dp, vertical = 4.dp)
+    )
+}
+
+private fun toolReferencePreview(tool: AvicenexTool): List<String> {
+    return when (tool.id) {
+        "lookup", "batch-validate", "bookmarks" ->
+            DemoData.icdCodes.take(2).map { "${it.code} - ${it.shortDescription}" } +
+                DemoData.cptCodes.take(2).map { "${it.code} - ${it.plainLanguageLabel}" }
+        "em-calculator" -> listOf("Established patient + moderate MDM -> 99214 when supported by documentation.")
+        "claim-scrubber" -> listOf("Watch for E/M + procedure without modifier -25 and CCI edits.")
+        "pa-tracker" -> listOf("Status, urgency, payer, CPT/HCPCS, submitted date, auth number, expiration.")
+        else -> emptyList()
     }
 }
 
