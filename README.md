@@ -20,4 +20,17 @@ The bundled demo data is derived from the Avicenex web repo reference files. CPT
 ./gradlew assembleDebug
 ```
 
-This workspace does not currently include a Gradle wrapper. Install or generate the wrapper before running the commands above.
+## Run In Android Studio
+
+1. Install Android Studio.
+2. Open this repository folder.
+3. Let Android Studio sync Gradle.
+4. Select the `app` run configuration.
+5. Choose an emulator or connected Android device.
+6. Press Run.
+
+For command-line builds on this machine, use JDK 17 and the installed Android SDK:
+
+```sh
+JAVA_HOME=/opt/homebrew/opt/openjdk@17 ANDROID_HOME=/opt/homebrew/share/android-commandlinetools ./gradlew assembleDebug
+```
